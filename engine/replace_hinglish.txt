@@ -1,0 +1,17 @@
+# Default fixes for Hinglish (wrong => right). Your own go in replacements.txt in the MixCaps folder.
+hun => hoon
+vo => woh
+vah => woh
+yah => yeh
+ye => ye
+nahin => nahi
+maim => main
+men => mein
+ke lie => ke liye
+ki lie => ki liye
+lie => liye
+jaega => jayega
+aega => ayega
+hoga => hoga
+kya => kya
+kyon => kyun

@@ -1,0 +1,3 @@
+# Default fixes for Telugish (wrong => right). Your own go in replacements.txt
+groop => group
+broo => bro

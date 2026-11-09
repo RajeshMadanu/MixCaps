@@ -1,0 +1,818 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MixCaps</title>
+<link rel="icon" type="image/svg+xml" href="/logo.svg">
+<style>
+  :root {
+    --bg: #121217; --panel: #1a1a22; --panel2: #23232e; --line: #2d2d3a;
+    --text: #ececf3; --muted: #8e8ea6; --accent: #a855f7; --accent2: #c084fc;
+    --ok: #34d399; --bad: #f87171;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 13px/1.4 "Segoe UI", system-ui, sans-serif;
+         display: flex; flex-direction: column; overflow: hidden; user-select: none; }
+  input, select { user-select: text; }
+
+  /* top bar */
+  .top { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .logo { font-weight: 700; font-size: 16px; letter-spacing: .3px; display: flex; align-items: center; gap: 8px; }
+  .logo img { width: 24px; height: 24px; }
+  .logo b { color: var(--accent); }
+  .conn { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; margin-left: auto; min-width: 0; }
+  .conn i { width: 8px; height: 8px; border-radius: 50%; background: var(--bad); flex: none; }
+  .conn.on i { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+  .conn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+
+  /* tabs */
+  .tabs { display: flex; background: var(--panel); border-bottom: 1px solid var(--line); padding: 0 8px; }
+  .tab { padding: 9px 14px; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; font-weight: 600; }
+  .tab.on { color: var(--text); border-bottom-color: var(--accent); }
+  .tab .n { font-weight: 400; color: var(--muted); margin-left: 4px; }
+
+  .page { flex: 1; min-height: 0; display: none; flex-direction: column; }
+  .page.on { display: flex; }
+  .scroll { overflow: auto; flex: 1; min-height: 0; }
+
+  /* generate block */
+  .gen { padding: 12px 14px; border-bottom: 1px solid var(--line); background: var(--bg); }
+  .grid { display: grid; grid-template-columns: 1fr 96px; gap: 8px; }
+  .field label { display: block; color: var(--muted); font-size: 11px; margin-bottom: 3px; text-transform: uppercase; letter-spacing: .6px; }
+  select, input[type=text], input[type=number] { width: 100%; padding: 7px 9px; border-radius: 7px; border: 1px solid var(--line);
+         background: var(--panel2); color: var(--text); font: inherit; outline: none; }
+  select:focus, input:focus { border-color: var(--accent); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 99px; border: 1px solid var(--line);
+          background: var(--panel2); color: var(--muted); cursor: pointer; font-size: 12px; }
+  .chip input { display: none; }
+  .chip.on { color: var(--text); border-color: var(--accent); background: #2b2040; }
+  .btnrow { display: flex; gap: 8px; }
+  .tiers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .tierc { position: relative; display: flex; flex-direction: column; align-items: center; padding: 7px 4px 6px; border-radius: 8px;
+           border: 1px solid var(--line); background: var(--panel2); cursor: pointer; text-transform: none; letter-spacing: 0; margin: 0; }
+  .tierc input { display: none; }
+  .tierc b { color: var(--text); font-size: 13px; }
+  .tierc small { color: var(--muted); font-size: 11px; }
+  .tierc.on { border-color: var(--accent); background: #2b2040; }
+  .tierc .rec { position: absolute; top: -7px; right: 6px; background: var(--ok); color: #062; font-size: 9px; font-weight: 700;
+                padding: 0 5px; border-radius: 99px; letter-spacing: .3px; }
+  .tierinfo { color: var(--muted); font-size: 12px; margin-top: 6px; line-height: 1.45; }
+  .tierinfo b { color: var(--text); font-weight: 600; }
+  .tierinfo .warn { color: #fbbf24; }
+  .hw { color: #6b6b82; font-size: 11px; margin-top: 2px; }
+  button { padding: 8px 12px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel2); color: var(--text);
+           font: inherit; cursor: pointer; white-space: nowrap; }
+  button:hover:not(:disabled) { border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; flex: 1; padding: 10px; }
+  button.primary:hover:not(:disabled) { background: var(--accent2); }
+  button:disabled { opacity: .4; cursor: default; }
+  .prog { margin-top: 10px; display: none; }
+  .prog.on { display: block; }
+  .bar { height: 5px; background: var(--panel2); border-radius: 99px; overflow: hidden; }
+  .bar > div { height: 100%; background: var(--accent); width: 0; transition: width .3s; }
+  .msg { color: var(--muted); font-size: 12px; margin-top: 6px; min-height: 16px; }
+  .msg.err { color: var(--bad); }
+
+  /* review list */
+  .find { display: flex; gap: 6px; padding: 8px 14px; border-bottom: 1px solid var(--line); align-items: center; }
+  .find input { flex: 1; min-width: 0; padding: 5px 8px; }
+  .find .chip { padding: 3px 8px; }
+  .row { display: grid; grid-template-columns: 30px 64px 1fr 44px; align-items: center; gap: 4px; padding: 2px 10px 2px 6px;
+         border-bottom: 1px solid #1d1d26; }
+  .row:hover { background: #191921; }
+  .row.sel { background: #261c38; }
+  .row .n { color: #5d5d72; text-align: right; font-size: 11px; }
+  .row .t { color: var(--muted); font: 11px Consolas, monospace; cursor: pointer; padding: 4px 0; }
+  .row .t:hover { color: var(--accent2); }
+  .row input { background: transparent; border: 1px solid transparent; padding: 5px 7px; font-size: 14px; border-radius: 6px; }
+  .row input:focus { background: var(--panel2); border-color: var(--accent); }
+  .row .a { display: flex; gap: 2px; opacity: 0; }
+  .row:hover .a, .row.sel .a { opacity: 1; }
+  .row .a button { padding: 2px 5px; font-size: 11px; background: transparent; border-color: transparent; color: var(--muted); }
+  .row .a button:hover { color: var(--text); border-color: var(--line); }
+  .empty { padding: 48px 28px; text-align: center; color: var(--muted); line-height: 1.6; }
+  .empty b { color: var(--text); }
+  .keys { color: #5d5d72; font-size: 11px; padding: 6px 14px; border-top: 1px solid var(--line); }
+  kbd { background: var(--panel2); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; font-size: 10px; color: var(--muted); }
+
+  /* style page */
+  .sect { padding: 14px; border-bottom: 1px solid var(--line); }
+  .sect h3 { margin: 0 0 10px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; }
+  .pvsect { padding: 10px 14px; background: var(--bg); }
+  .preview { height: 150px; border-radius: 10px; overflow: hidden; position: relative;
+             background: linear-gradient(160deg, #5b6b7d, #2a2f3a 55%, #171a21); }
+  .pvpos { position: absolute; left: 50%; transform: translate(-50%, 50%); white-space: nowrap; }
+  .look { display: inline-block; white-space: nowrap; line-height: 1.15; paint-order: stroke fill; }
+  .play { position: absolute; left: 8px; top: 8px; padding: 2px 8px; font-size: 11px; background: #0008; border-color: #fff2; }
+  .pvname { position: absolute; right: 10px; top: 9px; font-size: 11px; color: #fffa; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .hact { float: right; display: flex; gap: 4px; text-transform: none; letter-spacing: 0; }
+  .hact button { padding: 2px 8px; font-size: 11px; }
+  .pgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .pcard { position: relative; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; cursor: pointer; background: var(--panel2); }
+  .pcard:hover { border-color: #4a4a5e; }
+  .pcard.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .pcard .pv { height: 54px; display: flex; align-items: center; justify-content: center; overflow: hidden;
+               background: linear-gradient(160deg, #5b6b7d, #2a2f3a 60%, #171a21); }
+  .pcard .nm { padding: 4px 7px; font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+  .pcard .nm b { font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .pcard .del { padding: 0 5px; font-size: 10px; border: none; background: transparent; color: var(--muted); }
+  .pcard .del:hover { color: var(--bad); }
+  .pcard .del.sure { color: #fff; background: var(--bad); border-radius: 4px; }
+  .pcard .mine { position: absolute; top: 4px; left: 4px; font-size: 9px; background: var(--accent); color: #fff; padding: 0 5px; border-radius: 99px; }
+  .edited { color: #fbbf24; text-transform: none; letter-spacing: 0; font-size: 11px; margin-left: 4px; }
+  .grp { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; background: #17171e; }
+  .gh { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .gh .chip { margin: -2px 0; }
+  .grp .sub.off { display: none; }
+  .ctl { display: grid; grid-template-columns: 92px 1fr; gap: 8px; align-items: center; margin: 5px 0; }
+  .ctl > label { color: var(--muted); font-size: 12px; }
+  .ctl > label i { font-style: normal; color: #6b6b82; font-size: 11px; }
+  .two { display: flex; gap: 6px; align-items: center; }
+  .two select { flex: 1; min-width: 0; }
+  input[type=color] { width: 44px; height: 28px; padding: 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel2); cursor: pointer; }
+  .dirs { display: flex; gap: 3px; flex-wrap: wrap; }
+  .dirs button { width: 28px; height: 26px; padding: 0; font-size: 13px; }
+  .dirs button.on { border-color: var(--accent); background: #2b2040; }
+  .anims { margin: 0; }
+  /* stacked presets */
+  .stackpv { display: flex; flex-direction: column; align-items: center; gap: .12em; }
+  .stackpv > div { line-height: 1; }
+  .stackbar { margin-bottom: 8px; }
+  .stackbar .tabsl { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+  .stackbar .tabsl button { padding: 4px 9px; font-size: 11px; }
+  .stackbar .tabsl button.on { border-color: var(--accent); background: #2b2040; }
+  .stackbar .tabsl button i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
+  .hint { color: var(--muted); font-size: 11.5px; line-height: 1.45; margin: 4px 0 2px; }
+  .row .em { display: none; padding: 0; width: 20px; height: 22px; border: none; background: transparent; color: #4b4b5e; font-size: 14px; cursor: pointer; }
+  body.stackmode .row { grid-template-columns: 22px 30px 64px 1fr 44px; }
+  body.stackmode .row .em { display: block; }
+  .row .em.auto { color: #b4569a; }
+  .row .em.on { color: #f472b6; text-shadow: 0 0 6px #f472b688; }
+  .row .em.off { color: #6b6b82; text-decoration: line-through; }
+  .saverow { display: flex; gap: 8px; margin-top: 10px; }
+  .saverow input { flex: 1; min-width: 0; }
+  .saverow button.primary { flex: none; padding: 8px 14px; }
+
+  /* footer */
+  .foot { display: flex; gap: 8px; padding: 10px 14px; background: var(--panel); border-top: 1px solid var(--line); }
+  ::-webkit-scrollbar { width: 10px; } ::-webkit-scrollbar-thumb { background: #2d2d3a; border-radius: 10px; border: 2px solid var(--bg); }
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="logo"><img src="/logo.svg" alt="">Mix<b>Caps</b></div>
+    <div class="conn" id="conn"><i></i><span id="connTxt">connecting…</span></div>
+  </div>
+  <div class="tabs">
+    <div class="tab on" data-tab="caps">Captions<span class="n" id="count"></span></div>
+    <div class="tab" data-tab="style">Style</div>
+  </div>
+
+  <!-- CAPTIONS -->
+  <div class="page on" id="page-caps">
+    <div class="gen">
+      <div class="grid">
+        <div class="field"><label>Language</label>
+          <select id="lang">
+            <option value="auto">Auto-detect</option>
+            <option value="telugish">Telugish — Telugu + English</option>
+            <option value="hinglish">Hinglish — Hindi + English</option>
+            <option value="english">English</option>
+          </select></div>
+        <div class="field"><label>Words / caption</label><input type="number" id="wpc" min="1" max="8" value="3"></div>
+      </div>
+      <div class="field" style="margin-top:10px"><label>Speed / accuracy</label>
+        <div class="tiers" id="tiers">
+          <label class="tierc"><input type="radio" name="tier" value="light"><b>Light</b><small>fastest</small></label>
+          <label class="tierc"><input type="radio" name="tier" value="balanced" checked><b>Balanced</b><small>default</small></label>
+          <label class="tierc"><input type="radio" name="tier" value="best"><b>Best</b><small>most accurate</small></label>
+        </div>
+        <div class="tierinfo" id="tierinfo">Checking this PC…</div>
+      </div>
+      <div class="chips">
+        <label class="chip"><input type="checkbox" id="snap" checked>Snap to voice</label>
+        <label class="chip"><input type="checkbox" id="marks">In/Out only</label>
+        <label class="chip" title="Uses half the CPU, less GPU memory and low priority, so Resolve stays smooth. A bit slower."><input type="checkbox" id="low">Go easy on my PC</label>
+      </div>
+      <div class="btnrow">
+        <button class="primary" id="gen">Generate captions</button>
+        <button id="genFile" title="Use an audio or video file instead of the timeline">From file…</button>
+      </div>
+      <div class="prog" id="prog"><div class="bar"><div id="bar"></div></div></div>
+      <div class="msg" id="msg"></div>
+    </div>
+    <div class="find">
+      <input type="text" id="find" placeholder="Find word">
+      <input type="text" id="repl" placeholder="Replace with">
+      <label class="chip on" title="Fix this automatically in future jobs"><input type="checkbox" id="remember" checked>Remember</label>
+      <button id="replaceAll">Replace</button>
+    </div>
+    <div class="scroll" id="list"></div>
+    <div class="keys"><kbd>Enter</kbd>/<kbd>↓</kbd> next · <kbd>↑</kbd> previous · click a time to jump in Resolve · <kbd>Ctrl</kbd>+<kbd>M</kbd> merge with next · <kbd>Ctrl</kbd>+<kbd>Del</kbd> delete</div>
+  </div>
+
+  <!-- STYLE -->
+  <div class="page" id="page-style">
+    <div class="sect pvsect">
+      <div class="preview" id="pvBox"><span class="pvpos" id="pvPos"><span id="pv">ENTHA CRAZY BRO</span></span>
+        <button class="play" id="play" title="Play the entrance animation">▶</button>
+        <div class="pvname" id="pvName"></div>
+      </div>
+    </div>
+    <div class="scroll">
+      <div class="sect">
+        <h3>Presets
+          <span class="hact">
+            <button id="pImport" title="Add presets from a .mixcaps.json file (e.g. from a friend)">Import</button>
+            <button id="pExport" title="Save all your presets to a file you can share">Export</button>
+            <button id="pFolder" title="Open the folder with presets.json (you can edit it by hand)">Folder</button>
+          </span></h3>
+        <div class="pgrid" id="pgrid"></div>
+      </div>
+
+      <div class="sect">
+        <h3>Customise <span class="edited" id="edited"></span></h3>
+        <div class="grp stackbar" id="stackBar" style="display:none">
+          <div class="gh">Line styles</div>
+          <div class="tabsl" id="lineTabs"></div>
+          <div class="ctl"><label>Lines per block <i id="vMax"></i></label><input type="range" id="sMax" min="1" max="4" step="1"></div>
+          <p class="hint">Lines stack up until a pause or the end of a sentence, then the block clears. MixCaps puts the <b style="color:#f472b6">Emphasis</b> style on the key line of each block. Tap ★ next to a caption in the list to choose it yourself. Short filler like "what is" gets the <b>Filler</b> style, and the other lines rotate through the accents.</p>
+        </div>
+        <div class="grp">
+          <div class="gh">Text</div>
+          <div class="ctl"><label>Font</label><div class="two"><select id="lFont"></select><select id="lStyle"></select></div></div>
+          <div class="ctl"><label>Colour</label><div class="two"><input type="color" id="lColor">
+            <label class="chip"><input type="checkbox" id="lUpper">UPPERCASE</label></div></div>
+          <div class="ctl"><label>Size <i id="vScale"></i></label><input type="range" id="lScale" min="50" max="200" step="5"></div>
+          <div class="ctl"><label>Spacing <i id="vTrack"></i></label><input type="range" id="lTrack" min="80" max="160" step="2"></div>
+        </div>
+        <div class="grp">
+          <div class="gh"><label class="chip"><input type="checkbox" id="oOn">Outline</label></div>
+          <div class="sub" id="oBox">
+            <div class="ctl"><label>Colour</label><input type="color" id="oColor"></div>
+            <div class="ctl"><label>Thickness <i id="vOW"></i></label><input type="range" id="oW" min="2" max="40" step="1"></div>
+          </div>
+        </div>
+        <div class="grp">
+          <div class="gh"><label class="chip"><input type="checkbox" id="sOn">Shadow</label></div>
+          <div class="sub" id="sBox">
+            <div class="ctl"><label>Colour</label><input type="color" id="sColor"></div>
+            <div class="ctl"><label>Direction</label><div class="dirs" id="sDir"></div></div>
+            <div class="ctl"><label>Distance <i id="vSD"></i></label><input type="range" id="sDist" min="0" max="20" step="0.5"></div>
+            <div class="ctl"><label>Softness <i id="vSB"></i></label><input type="range" id="sBlur" min="0" max="100" step="1"></div>
+            <div class="ctl"><label>Opacity <i id="vSO"></i></label><input type="range" id="sOp" min="0" max="100" step="5"></div>
+          </div>
+        </div>
+        <div class="grp">
+          <div class="gh"><label class="chip"><input type="checkbox" id="bOn">Background box</label></div>
+          <div class="sub" id="bBox">
+            <div class="ctl"><label>Colour</label><input type="color" id="bColor"></div>
+            <div class="ctl"><label>Opacity <i id="vBO"></i></label><input type="range" id="bOp" min="10" max="100" step="5"></div>
+            <div class="ctl"><label>Padding <i id="vBP"></i></label><input type="range" id="bPad" min="0" max="100" step="5"></div>
+            <div class="ctl"><label>Rounded <i id="vBR"></i></label><input type="range" id="bRound" min="0" max="100" step="5"></div>
+          </div>
+        </div>
+        <div class="grp">
+          <div class="gh">Animation</div>
+          <div class="chips anims" id="anims"></div>
+        </div>
+        <div class="saverow">
+          <input type="text" id="pName" placeholder="Name your preset" maxlength="40" spellcheck="false">
+          <button class="primary" id="pSave">Save preset</button>
+        </div>
+        <div class="msg" id="pMsg"></div>
+      </div>
+
+      <div class="sect">
+        <h3>Position</h3>
+        <div class="chips" style="margin:0">
+          <label class="chip" title="Shorts / vertical: a third of the way up. Landscape: subtitle position."><input type="checkbox" id="posAuto" checked>Auto position</label>
+        </div>
+        <div class="field" id="posBox" style="margin-top:8px"><label>Height on screen — <span id="posYv">30</span>%</label>
+          <input type="range" id="posY" min="5" max="95" value="30"></div>
+        <p style="color:var(--muted);font-size:12px;margin:10px 0 6px">Captions already on the timeline? Change the look here, then apply it to them, no need to add them again. Changed the timeline size? Fit them to it.</p>
+        <div class="btnrow">
+          <button id="restyle" style="flex:1" title="Give the MixCaps captions on this timeline the look above">Apply look to timeline</button>
+          <button id="refit" style="flex:1" title="Resize and re-position for this timeline's resolution">Fit to this timeline</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <button class="primary" id="insert" disabled>Add captions to timeline</button>
+    <button id="srt" title="Download the captions as an SRT file">SRT</button>
+  </div>
+
+<script>
+const $ = id => document.getElementById(id);
+let caps = [], phase = "idle", sel = -1, dirty = false, lastJson = "";
+
+const fmt = t => { const m = Math.floor(t / 60); return m + ":" + (t - m * 60).toFixed(1).padStart(4, "0"); };
+async function api(path, body) {
+  const r = await fetch(path, body === undefined ? {} : { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return r.json();
+}
+function setMsg(t, err) { $("msg").textContent = t || ""; $("msg").className = "msg" + (err ? " err" : ""); }
+const esc = s => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+
+// tabs
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
+  document.querySelectorAll(".page").forEach(p => p.classList.toggle("on", p.id === "page-" + t.dataset.tab));
+});
+// chips mirror their checkbox
+function syncChips() { document.querySelectorAll(".chip").forEach(c => { const i = c.querySelector("input"); c.classList.toggle("on", i.checked); }); }
+document.querySelectorAll(".chip input").forEach(i => i.addEventListener("change", syncChips));
+
+// list
+function render() {
+  $("count").textContent = caps.length ? caps.length : "";
+  if (!caps.length) {
+    $("list").innerHTML = '<div class="empty">Pick the language and press <b>Generate captions</b>.<br>Your captions appear here so you can check them before they go on the timeline.</div>';
+    return;
+  }
+  let lay = null;
+  try { if (look.type === "stack") lay = layoutStack(caps, look); } catch (e) {}  // look isn't set up on the very first render
+  const star = (c, i) => {
+    if (!lay) return "";
+    const cls = c.em === true ? "on" : c.em === false ? "off" : (lay[i].role === "emph" ? "auto" : "");
+    const tip = c.em === true ? "Emphasis: always (click: never)" : c.em === false ? "Emphasis: never (click: automatic)" :
+                (lay[i].role === "emph" ? "Emphasis picked automatically (click: always)" : "Automatic (click: always emphasise)");
+    return `<button class="em ${cls}" data-em="${i}" title="${tip}">★</button>`;
+  };
+  $("list").innerHTML = caps.map((c, i) => `<div class="row${i === sel ? " sel" : ""}" data-i="${i}">
+      ${star(c, i)}<div class="n">${i + 1}</div>
+      <div class="t" title="Jump here in Resolve">${fmt(c.s)}</div>
+      <input value="${esc(c.t)}" data-i="${i}" spellcheck="false">
+      <div class="a"><button data-merge="${i}" title="Merge with next (Ctrl+M)">⤓</button><button data-del="${i}" title="Delete (Ctrl+Del)">✕</button></div>
+    </div>`).join("");
+}
+function save() { dirty = false; api("/api/captions", { captions: caps }); }
+function select(i, focus) {
+  if (i < 0 || i >= caps.length) return;
+  sel = i;
+  document.querySelectorAll(".row.sel").forEach(r => r.classList.remove("sel"));
+  const row = document.querySelector(`.row[data-i="${i}"]`);
+  if (row) { row.classList.add("sel"); row.scrollIntoView({ block: "nearest" }); if (focus) { const inp = row.querySelector("input"); inp.focus(); } }
+  api("/api/jump", { s: caps[i].s });
+}
+function del(i) { caps.splice(i, 1); save(); render(); if (caps.length) select(Math.min(i, caps.length - 1), true); }
+function merge(i) {
+  if (i + 1 >= caps.length) return;
+  caps[i].t += " " + caps[i + 1].t; caps[i].e = caps[i + 1].e; caps.splice(i + 1, 1); save(); render(); select(i, true);
+}
+$("list").addEventListener("click", e => {
+  const t = e.target;
+  if (t.dataset.em !== undefined) {
+    const c = caps[+t.dataset.em];
+    // automatic -> always -> never -> automatic
+    if (c.em === true) c.em = false; else if (c.em === false) delete c.em; else c.em = true;
+    save(); render(); return;
+  }
+  if (t.dataset.del !== undefined) return del(+t.dataset.del);
+  if (t.dataset.merge !== undefined) return merge(+t.dataset.merge);
+  if (t.classList.contains("t")) select(+t.closest(".row").dataset.i, true);
+});
+$("list").addEventListener("focusin", e => { if (e.target.tagName === "INPUT") { const i = +e.target.dataset.i; if (i !== sel) select(i); } });
+$("list").addEventListener("input", e => { if (e.target.tagName === "INPUT") { caps[+e.target.dataset.i].t = e.target.value; dirty = true; } });
+$("list").addEventListener("keydown", e => {
+  if (e.target.tagName !== "INPUT") return;
+  const i = +e.target.dataset.i;
+  if (e.key === "Enter" || e.key === "ArrowDown") { e.preventDefault(); if (dirty) save(); select(Math.min(i + 1, caps.length - 1), true); }
+  else if (e.key === "ArrowUp") { e.preventDefault(); if (dirty) save(); select(Math.max(i - 1, 0), true); }
+  else if (e.ctrlKey && (e.key === "m" || e.key === "M")) { e.preventDefault(); merge(i); }
+  else if (e.ctrlKey && e.key === "Delete") { e.preventDefault(); del(i); }
+});
+$("list").addEventListener("focusout", () => { if (dirty) save(); });
+
+$("replaceAll").onclick = () => {
+  const a = $("find").value.trim(), b = $("repl").value.trim(); if (!a) return;
+  const re = new RegExp("(^|[^\\p{L}\\p{N}'])" + a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?=$|[^\\p{L}\\p{N}'])", "giu");
+  let n = 0;
+  caps.forEach(c => { c.t = c.t.replace(re, (m, p) => { n++; return p + b; }).replace(/\s+/g, " ").trim(); });
+  caps = caps.filter(c => c.t);
+  save(); render();
+  if ($("remember").checked && b) api("/api/remember", { a, b });
+  setMsg(`Replaced ${n}×` + ($("remember").checked && b ? " · fixed automatically from now on" : ""));
+};
+
+// actions
+const tierVal = () => (document.querySelector('input[name="tier"]:checked') || {}).value || "balanced";
+const opts = extra => Object.assign({ lang: $("lang").value, wpc: +$("wpc").value, snap: $("snap").checked, marks: $("marks").checked,
+                                      tier: tierVal(), low: $("low").checked }, extra);
+
+// speed / accuracy tiers
+let SYS = null;
+const NAMES = { "small": "Whisper Small", "large-v3-turbo": "Whisper Turbo", "large-v3": "Whisper Large v3",
+                "telugu-small": "Telugu Small", "telugu-medium": "Telugu Medium", "telugu-large": "Telugu Large" };
+function tierUI() {
+  document.querySelectorAll(".tierc").forEach(c => c.classList.toggle("on", c.querySelector("input").checked));
+  if (!SYS || !SYS.tiers) return;
+  const t = SYS.tiers[tierVal()], lang = $("lang").value;
+  const langs = lang === "auto" ? ["telugish", "hinglish", "english"] : [lang];
+  const lines = langs.map(lg => {
+    const m = t.models[lg];
+    let st = m.installed ? "installed" : (m.name.startsWith("telugu") ? '<span class="warn">not installed — re-run install.bat</span>' : `downloads ${m.disk_gb} GB the first time`);
+    const label = { telugish: "Telugish", hinglish: "Hinglish", english: "English" }[lg];
+    return `${label}: <b>${NAMES[m.name] || m.name}</b> · ${st}`;
+  });
+  const vram = Math.max(...langs.map(lg => t.models[lg].vram_gb));
+  let fit = "";
+  if (SYS.cuda && SYS.vram_gb) fit = vram > SYS.vram_gb * 0.8 ? ' · <span class="warn">may be too big for your GPU</span>' : "";
+  else fit = tierVal() !== "light" ? ' · <span class="warn">no NVIDIA GPU: this will be slow</span>' : "";
+  $("tierinfo").innerHTML = `${t.about}${fit}<br>${lines.join("<br>")}` +
+    `<div class="hw">${SYS.gpu ? SYS.gpu + " · " + SYS.vram_gb + " GB GPU" : "No NVIDIA GPU (CPU mode)"} · ${SYS.ram_gb} GB RAM · ${SYS.cpus} CPU threads</div>`;
+}
+document.querySelectorAll('input[name="tier"]').forEach(r => r.addEventListener("change", () => {
+  tierUI(); try { localStorage.setItem("mixcaps_tier", tierVal()); } catch (e) {}
+}));
+$("lang").addEventListener("change", tierUI);
+async function loadSystem() {
+  const s = await api("/api/system");
+  if (s.loading) { setTimeout(loadSystem, 800); return; }
+  SYS = s;
+  if (s.recommended) {
+    const rc = document.querySelector(`input[name="tier"][value="${s.recommended}"]`);
+    if (rc) rc.closest(".tierc").insertAdjacentHTML("beforeend", '<span class="rec">FOR YOUR PC</span>');
+    let saved = null; try { saved = localStorage.getItem("mixcaps_tier"); } catch (e) {}
+    const pick = document.querySelector(`input[name="tier"][value="${saved || s.recommended}"]`);
+    if (pick) pick.checked = true;
+  }
+  tierUI();
+}
+loadSystem();
+$("gen").onclick = async () => { const r = await api("/api/generate", opts()); if (!r.ok) setMsg(r.error || "Busy", true); };
+$("genFile").onclick = async () => { setMsg("Choose a file in the window that opened…"); const r = await api("/api/generate", opts({ useFile: true })); if (!r.ok) setMsg(r.error || "Busy", true); };
+// ================================================================ looks / presets
+// A look is the same data Resolve gets (see apply_look in MixCaps.lua). The preview below is a CSS
+// approximation of how Text+ draws it; the numbers map Text+ units to em.
+const clone = o => JSON.parse(JSON.stringify(o));
+const hex = c => "#" + c.map(v => Math.round(Math.max(0, Math.min(1, v)) * 255).toString(16).padStart(2, "0")).join("");
+const rgb = h => [1, 3, 5].map(i => parseInt(h.substr(i, 2), 16) / 255);
+const rgba = (c, a) => `rgba(${c.map(v => Math.round(v * 255)).join(",")},${a})`;
+const WEIGHTS = { thin: 100, extralight: 200, ultralight: 200, light: 300, semilight: 350, regular: 400, book: 400, normal: 400,
+                  medium: 500, semibold: 600, demibold: 600, bold: 700, extrabold: 800, ultrabold: 800, heavy: 900, black: 900 };
+function fontCss(st) {
+  const k = (st || "").toLowerCase().replace(/[\s-]/g, "");
+  const italic = /italic|oblique/.test(k);
+  const base = k.replace(/italic|oblique/g, "") || "regular";
+  return { weight: WEIGHTS[base] || 400, italic };
+}
+function paint(el, L, text, px) {
+  const f = fontCss(L.fontStyle);
+  const s = el.style;
+  el.className = "look";
+  el.textContent = L.upper ? text.toUpperCase() : text;
+  s.fontFamily = `"${L.font}", "Segoe UI", sans-serif`; s.fontWeight = f.weight; s.fontStyle = f.italic ? "italic" : "normal";
+  s.fontSize = (px * (L.scale || 1)).toFixed(1) + "px";
+  s.color = hex(L.color || [1, 1, 1]);
+  s.letterSpacing = (((L.tracking || 1) - 1) * 0.6).toFixed(3) + "em";
+  s.webkitTextStroke = L.outline ? `${(L.outline.width * 0.9).toFixed(3)}em ${hex(L.outline.color)}` : "0";
+  const sh = L.shadow;
+  s.textShadow = sh ? `${(sh.x * 1.2).toFixed(3)}em ${(-sh.y * 1.2).toFixed(3)}em ${(sh.blur * 0.4).toFixed(3)}em ${rgba(sh.color, sh.opacity ?? 1)}` : "none";
+  const b = L.box;
+  s.background = b ? rgba(b.color, b.opacity ?? 1) : "none";
+  s.padding = b ? `${(b.padY * 1.6).toFixed(3)}em ${(b.padX * 2).toFixed(3)}em` : "0";
+  s.borderRadius = b ? (b.round * 0.6).toFixed(3) + "em" : "0";
+}
+function animate(el, L) {
+  const full = el.textContent;
+  const d = { pop: 170, fade: 200, slide: 200, blur: 300, type: 450 }[L.anim];
+  if (!d) return;
+  if (L.anim === "pop") el.animate([{ transform: "scale(.72)" }, { transform: "scale(1.08)", offset: .6 }, { transform: "scale(1)" }], { duration: d });
+  if (L.anim === "fade") el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: d });
+  if (L.anim === "blur") el.animate([{ opacity: 0, filter: "blur(6px)" }, { opacity: 1, filter: "blur(0)" }], { duration: 300, easing: "ease-out" });
+  if (L.anim === "slide") el.animate([{ opacity: 0, transform: "translateY(.6em)" }, { opacity: 1, transform: "none" }], { duration: d, easing: "ease-out" });
+  if (L.anim === "type") {
+    const t0 = performance.now();
+    const step = () => {
+      const n = Math.min(full.length, Math.round(full.length * (performance.now() - t0) / d));
+      el.innerHTML = esc(full.slice(0, n)) + `<span style="visibility:hidden">${esc(full.slice(n))}</span>`;
+      if (n < full.length) requestAnimationFrame(step);
+    };
+    step();
+  }
+}
+
+const DEFAULT_LOOK = { name: "GameGlitch", upper: true, scale: 1, font: "Poppins", fontStyle: "Bold", color: [1, 1, 1], tracking: 1,
+                       shadow: { color: [0.659, 0.333, 0.969], x: 0.06, y: 0, blur: 0, opacity: 1 }, anim: "pop" };
+let look = clone(DEFAULT_LOOK), base = clone(DEFAULT_LOOK), PRESETS = { builtin: [], user: [] }, FONTLIST = null;
+const lookKey = L => { const c = clone(L); delete c.name; return JSON.stringify(c, Object.keys(c).sort()); };
+const sampleText = () => sel >= 0 && caps[sel] ? caps[sel].t : "Entha crazy bro";
+
+// ---- stacked presets: blocks of lines, each line gets a role (emph / accent / filler)
+const STOP = new Set(("a an the is are was were be been am i im you he she it its we they me my your our us to of in on at for with and or but so if " +
+  "then that this these those what which who how when where why just very really do does did not no yes oh ok okay like " +
+  "what's that's it's i'll i'm i've i'd we'd we're we'll you're you'll he's she's there here there's let's gonna wanna gotta " +
+  "hai hain ho tha thi the ka ki ke ko se ne me mein main hum tum aap ye yeh wo woh jo toh bhi aur kya na nahi bas ek ab " +
+  "ra ga ani lo nu ante adi idi aa ee oka ledu undi kada ani mari").split(" "));
+const words = t => t.toLowerCase().replace(/[^\p{L}\p{N}' ]/gu, " ").split(/\s+/).filter(Boolean);
+function layoutStack(list, P) {
+  const max = P.maxLines || 4, nAcc = (P.accents || []).length || 1;
+  const out = list.map(() => ({}));
+  let cur = [], block = 0, accI = 0;
+  const finish = () => {
+    if (!cur.length) return;
+    const be = list[cur[cur.length - 1]].e;
+    cur.forEach((i, k) => {
+      const c = list[i], w = words(c.t);
+      Object.assign(out[i], { slot: k, block, be, role: c.em === true ? "emph" : (w.length <= 2 && w.every(v => STOP.has(v)) ? "filler" : "acc") });
+    });
+    // one automatic emphasis per block of 2+ lines, unless the user starred one
+    if (!cur.some(i => list[i].em === true) && cur.length >= 2) {
+      let best = -1, bs = -1e9;
+      cur.forEach(i => {
+        if (out[i].role === "filler" || list[i].em === false) return;
+        const w = words(list[i].t), content = w.filter(v => !STOP.has(v) && v.length >= 3);
+        if (!content.length) return;
+        const sc = Math.max(...content.map(v => v.length)) - 1.5 * w.length - 0.5 * out[i].slot;
+        if (sc > bs) { bs = sc; best = i; }
+      });
+      if (best >= 0) out[best].role = "emph";
+    }
+    cur.forEach(i => {
+      const r = out[i].role;
+      out[i].li = r === "emph" ? 1 : r === "filler" ? nAcc + 2 : 2 + (accI++ % nAcc);
+    });
+    cur = []; block++;
+  };
+  list.forEach((c, i) => {
+    if (cur.length) {
+      const prev = list[cur[cur.length - 1]], first = list[cur[0]];
+      if (cur.length >= max || c.s - prev.e > 0.6 || /[.?!]["']?\s*$/.test(prev.t) || c.e - first.s > 5) finish();
+    }
+    cur.push(i);
+  });
+  finish();
+  return out;
+}
+
+const DIRS = [["↖", -1, 1], ["↑", 0, 1], ["↗", 1, 1], ["←", -1, 0], ["→", 1, 0], ["↙", -1, -1], ["↓", 0, -1], ["↘", 1, -1]];
+const ANIMS = [["pop", "Pop"], ["fade", "Fade"], ["slide", "Slide up"], ["blur", "Blur in"], ["type", "Typewriter"], ["none", "None"]];
+
+// which look the editor is working on: the whole preset, or one line style of a stacked preset
+let tgt = "emph";
+const isStack = () => look.type === "stack";
+function T() {
+  if (!isStack()) return look;
+  if (tgt === "filler") return look.filler;
+  if (tgt.startsWith("acc")) return look.accents[+tgt.slice(3)] || look.accents[0];
+  return look.emph;
+}
+function renderStackBar() {
+  $("stackBar").style.display = isStack() ? "" : "none";
+  document.body.classList.toggle("stackmode", isStack());
+  if (!isStack()) return;
+  const tabs = [["emph", "Emphasis", look.emph], ...look.accents.map((a, k) => ["acc" + k, "Accent " + (k + 1), a]), ["filler", "Filler", look.filler]];
+  $("lineTabs").innerHTML = tabs.map(([id, nm, L]) => `<button data-t="${id}" class="${id === tgt ? "on" : ""}"><i style="background:${hex(L.color)}"></i>${nm}</button>`).join("");
+  $("sMax").value = look.maxLines || 4; $("vMax").textContent = $("sMax").value;
+}
+$("lineTabs").addEventListener("click", e => { const b = e.target.closest("button"); if (!b) return; tgt = b.dataset.t; toEditor(); });
+$("sMax").addEventListener("input", () => { look.maxLines = +$("sMax").value; renderStackBar(); showLook(); render(); });
+
+// draw a look (or a whole stacked block) into an element
+const STACK_SAMPLE = [["filler", "what is"], ["emph", "love is.."], ["acc0", "giving space"], ["acc1", "growing together"]];
+function paintAny(el, L, text, px) {
+  if (L.type !== "stack") { el.removeAttribute("style"); return paint(el, L, text, px); }
+  el.removeAttribute("style");
+  el.className = "stackpv";
+  const lines = STACK_SAMPLE.slice(0, Math.max(2, L.maxLines || 4));
+  el.innerHTML = lines.map(() => "<div><span></span></div>").join("");
+  lines.forEach(([r, t], k) => {
+    const sub = r === "filler" ? L.filler : r === "emph" ? L.emph : (L.accents[+r.slice(3)] || L.accents[0]);
+    paint(el.children[k].firstChild, Object.assign({}, sub, { upper: L.upper, scale: (L.scale || 1) * (sub.scale || 1) }), t, px);
+  });
+}
+function animateAny(el, L) {
+  if (L.type !== "stack") return animate(el, L);
+  [...el.children].forEach((d, k) => {
+    const sp = d.firstChild, r = STACK_SAMPLE[k][0];
+    const sub = r === "filler" ? L.filler : r === "emph" ? L.emph : (L.accents[+r.slice(3)] || L.accents[0]);
+    sp.style.visibility = "hidden";
+    setTimeout(() => { sp.style.visibility = ""; animate(sp, sub); }, 350 * k);
+  });
+}
+$("sDir").innerHTML = DIRS.map((d, i) => `<button data-d="${i}" title="Shadow direction">${d[0]}</button>`).join("");
+$("anims").innerHTML = ANIMS.map(a => `<label class="chip"><input type="radio" name="anim" value="${a[0]}">${a[1]}</label>`).join("");
+
+// ---- editor <-> look
+function shadowDir(sh) {
+  let best = 4, bd = 1e9;
+  const m = Math.hypot(sh.x, sh.y) || 1;
+  DIRS.forEach((d, i) => { const dm = Math.hypot(d[1], d[2]); const e = Math.hypot(sh.x / m - d[1] / dm, sh.y / m - d[2] / dm); if (e < bd) { bd = e; best = i; } });
+  return best;
+}
+let curDir = 4;
+function fillFonts() {
+  const L = T();
+  const fams = FONTLIST ? Object.keys(FONTLIST) : [];
+  if (L.font && !fams.includes(L.font)) fams.unshift(L.font);
+  $("lFont").innerHTML = fams.map(f => `<option${f === L.font ? " selected" : ""}>${esc(f)}</option>`).join("");
+  fillStyles();
+}
+function fillStyles() {
+  const L = T();
+  let sts = (FONTLIST && FONTLIST[L.font]) || [];
+  if (L.fontStyle && !sts.includes(L.fontStyle)) sts = [L.fontStyle, ...sts];
+  $("lStyle").innerHTML = sts.map(s => `<option${s === L.fontStyle ? " selected" : ""}>${esc(s)}</option>`).join("");
+}
+function toEditor() {
+  renderStackBar();
+  fillFonts();
+  const L = T();
+  $("lColor").value = hex(L.color || [1, 1, 1]); $("lUpper").checked = !!look.upper;
+  $("lScale").value = Math.round((L.scale || 1) * 100); $("lTrack").value = Math.round((L.tracking || 1) * 100);
+  const o = L.outline, s = L.shadow, b = L.box;
+  $("oOn").checked = !!o; if (o) { $("oColor").value = hex(o.color); $("oW").value = Math.round(o.width * 100); }
+  $("sOn").checked = !!s;
+  if (s) { $("sColor").value = hex(s.color); curDir = shadowDir(s); $("sDist").value = (Math.hypot(s.x, s.y) * 100).toFixed(1);
+           $("sBlur").value = Math.round(Math.sqrt((s.blur || 0) / 3) * 100); $("sOp").value = Math.round((s.opacity ?? 1) * 100); }
+  $("bOn").checked = !!b;
+  if (b) { $("bColor").value = hex(b.color); $("bOp").value = Math.round((b.opacity ?? 1) * 100);
+           $("bPad").value = Math.round(b.padX / 0.8 * 100); $("bRound").value = Math.round(b.round * 100); }
+  document.querySelectorAll('input[name="anim"]').forEach(r => r.checked = r.value === (L.anim || "pop"));
+  syncChips(); showLook();
+}
+function fromEditor() {
+  const L = T();
+  if (L.font !== $("lFont").value || L.fontStyle !== $("lStyle").value) delete L.fallback;  // the user picked a font
+  L.font = $("lFont").value; L.fontStyle = $("lStyle").value;
+  L.color = rgb($("lColor").value); look.upper = $("lUpper").checked;
+  L.scale = +$("lScale").value / 100; L.tracking = +$("lTrack").value / 100;
+  L.outline = $("oOn").checked ? { color: rgb($("oColor").value), width: +$("oW").value / 100 } : undefined;
+  if ($("sOn").checked) {
+    const d = DIRS[curDir], dm = Math.hypot(d[1], d[2]), dist = +$("sDist").value / 100;
+    L.shadow = { color: rgb($("sColor").value), x: +(d[1] / dm * dist).toFixed(4), y: +(d[2] / dm * dist).toFixed(4),
+                 blur: +(3 * (+$("sBlur").value / 100) ** 2).toFixed(4), opacity: +$("sOp").value / 100 };
+  } else L.shadow = undefined;
+  if ($("bOn").checked) {
+    const p = +$("bPad").value / 100 * 0.8;
+    L.box = { color: rgb($("bColor").value), opacity: +$("bOp").value / 100, padX: +p.toFixed(3), padY: +(p / 2).toFixed(3), round: +$("bRound").value / 100 };
+  } else L.box = undefined;
+  L.anim = (document.querySelector('input[name="anim"]:checked') || {}).value || "pop";
+  for (const k of ["outline", "shadow", "box"]) if (!L[k]) delete L[k];
+  if (isStack()) renderStackBar();
+  showLook();
+}
+function showLook() {
+  paintAny($("pv"), look, sampleText(), isStack() ? 18 : 26);
+  const pp = $("pvPos").style;
+  if (isStack()) { pp.bottom = "auto"; pp.top = "50%"; pp.transform = "translate(-50%,-50%)"; }
+  else { pp.top = ""; pp.transform = ""; pp.bottom = ($("posAuto").checked ? 15 : +$("posY").value) + "%"; }
+  $("posYv").textContent = $("posY").value;
+  $("posBox").style.display = $("posAuto").checked ? "none" : "";
+  $("oBox").classList.toggle("off", !$("oOn").checked);
+  $("sBox").classList.toggle("off", !$("sOn").checked);
+  $("bBox").classList.toggle("off", !$("bOn").checked);
+  document.querySelectorAll("#sDir button").forEach((b, i) => b.classList.toggle("on", i === curDir));
+  $("vScale").textContent = $("lScale").value + "%"; $("vTrack").textContent = $("lTrack").value + "%";
+  $("vOW").textContent = $("oW").value; $("vSD").textContent = $("sDist").value; $("vSB").textContent = $("sBlur").value;
+  $("vSO").textContent = $("sOp").value + "%"; $("vBO").textContent = $("bOp").value + "%";
+  $("vBP").textContent = $("bPad").value; $("vBR").textContent = $("bRound").value;
+  const changed = lookKey(look) !== lookKey(base);
+  $("edited").textContent = changed ? "• edited from " + base.name : "";
+  $("pvName").textContent = base.name + (changed ? " (edited)" : "");
+  document.querySelectorAll(".pcard").forEach(c => c.classList.toggle("on", c.dataset.name === base.name && !changed));
+  try { localStorage.setItem("mixcaps_look", JSON.stringify({ look, base })); } catch (e) {}
+}
+document.querySelectorAll("#page-style .grp input, #page-style .grp select").forEach(el => {
+  el.addEventListener("input", fromEditor); el.addEventListener("change", fromEditor);
+});
+$("lFont").addEventListener("change", () => {
+  const L = T();
+  L.font = $("lFont").value; delete L.fallback;
+  const sts = (FONTLIST && FONTLIST[L.font]) || [];
+  L.fontStyle = sts.includes(L.fontStyle) ? L.fontStyle : (sts.find(s => /^bold$/i.test(s)) || sts.find(s => /^regular$/i.test(s)) || sts[0] || "Regular");
+  fillStyles(); fromEditor();
+});
+$("sDir").addEventListener("click", e => { const d = e.target.dataset.d; if (d === undefined) return; curDir = +d; fromEditor(); });
+document.querySelectorAll('input[name="anim"]').forEach(r => r.addEventListener("change", () => { fromEditor(); syncChips(); playPv(); }));
+["posY", "posAuto"].forEach(id => { $(id).addEventListener("input", showLook); $(id).addEventListener("change", showLook); });
+function playPv() { showLook(); animateAny($("pv"), look); }
+$("play").onclick = playPv;
+document.querySelector('.tab[data-tab="style"]').addEventListener("click", () => { showLook(); });
+
+// ---- preset gallery
+function pickPreset(p) {
+  base = clone(p); look = clone(p); tgt = "emph";
+  $("pName").value = PRESETS.user.some(u => u.name === p.name) ? p.name : "";
+  toEditor(); setPMsg(""); render();
+  playPv();
+}
+function renderPresets() {
+  const all = [...PRESETS.builtin.map(p => [p, false]), ...PRESETS.user.map(p => [p, true])];
+  $("pgrid").innerHTML = all.map(([p, mine], i) => `<div class="pcard" data-i="${i}" data-name="${esc(p.name)}">
+      <div class="pv"><span></span></div>${mine ? '<span class="mine">YOURS</span>' : ""}
+      <div class="nm"><b>${esc(p.name)}</b>${mine ? `<button class="del" data-del="${esc(p.name)}" title="Delete this preset">✕</button>` : ""}</div></div>`).join("");
+  document.querySelectorAll(".pcard").forEach(c => {
+    const P = all[+c.dataset.i][0];
+    paintAny(c.querySelector(".pv span"), P.type === "stack" ? Object.assign({}, P, { maxLines: 3 }) : P, "Entha bro", P.type === "stack" ? 11 : 15);
+  });
+  $("pgrid").onclick = async e => {
+    const del = e.target.closest(".del");
+    if (del) {
+      e.stopPropagation();
+      if (!del.classList.contains("sure")) { del.classList.add("sure"); del.textContent = "Delete?"; setTimeout(() => { del.classList.remove("sure"); del.textContent = "✕"; }, 2500); return; }
+      await api("/api/presets/delete", { name: del.dataset.del });
+      setPMsg(`Deleted "${del.dataset.del}"`); return loadPresets();
+    }
+    const c = e.target.closest(".pcard"); if (c) pickPreset(all[+c.dataset.i][0]);
+  };
+  showLook();
+}
+async function loadPresets() {
+  try { PRESETS = await (await fetch("/api/presets")).json(); } catch (e) {}
+  renderPresets();
+}
+async function loadFonts() {
+  const r = await (await fetch("/api/fonts")).json();
+  if (r.loading) return setTimeout(loadFonts, 700);
+  FONTLIST = r.fonts; fillFonts();
+}
+function setPMsg(t, err) { $("pMsg").textContent = t || ""; $("pMsg").className = "msg" + (err ? " err" : ""); }
+$("pSave").onclick = async () => {
+  const name = $("pName").value.trim();
+  if (!name) { $("pName").focus(); return setPMsg("Give your preset a name first.", true); }
+  const r = await api("/api/presets/save", { preset: Object.assign(clone(look), { name }) });
+  if (!r.ok) return setPMsg(r.error, true);
+  setPMsg(`Saved "${r.preset.name}". It's in your presets now.`);
+  await loadPresets(); base = clone(r.preset); look = clone(r.preset); toEditor();
+};
+$("pImport").onclick = async () => { setPMsg("Choose a presets file in the window that opened…"); const r = await api("/api/presets/import", {});
+  setPMsg(r.ok ? `Imported ${r.count} preset${r.count > 1 ? "s" : ""}.` : r.error, !r.ok); if (r.ok) loadPresets(); };
+$("pExport").onclick = async () => { setPMsg("Choose where to save in the window that opened…"); const r = await api("/api/presets/export", {});
+  setPMsg(r.ok ? `Exported ${r.count} preset${r.count > 1 ? "s" : ""} to ${r.path}` : r.error, !r.ok); };
+$("pFolder").onclick = () => api("/api/presets/folder", {});
+
+// a font that isn't installed falls back (e.g. Bodoni MT comes with Office; friends may not have it)
+function forResolve(L) {
+  const c = clone(L);
+  if (c.fallback && FONTLIST && !((FONTLIST[c.font] || []).includes(c.fontStyle))) { c.font = c.fallback.font; c.fontStyle = c.fallback.fontStyle; }
+  delete c.fallback; delete c.name; delete c.upper;
+  return c;
+}
+const curPos = () => $("posAuto").checked ? null : (+$("posY").value) / 100;
+function insertPayload() {
+  if (!isStack()) return { captions: caps, style: { look: forResolve(look), scale: look.scale || 1, posY: curPos() }, upper: !!look.upper };
+  const looks = [look.emph, ...look.accents, look.filler].map(forResolve);
+  const lay = layoutStack(caps, look);
+  const list = caps.map((c, i) => ({ s: c.s, e: c.e, t: c.t, em: c.em, li: lay[i].li, slot: lay[i].slot, block: lay[i].block, be: lay[i].be }));
+  return { captions: list, style: { look: looks[0], looks, scale: look.scale || 1, posY: curPos() }, upper: !!look.upper };
+}
+async function doInsert() {
+  if (dirty) save();
+  const r = await api("/api/insert", insertPayload());
+  if (!r.ok) setMsg(r.error || "Busy", true);
+}
+$("refit").onclick = async () => { const r = await api("/api/refit", {}); if (!r.ok) setMsg(r.error || "Busy", true); };
+$("restyle").onclick = async () => {
+  if (isStack()) return doInsert();  // stacked lines need a fresh layout: re-add (replaces the old captions)
+  const p = insertPayload();
+  const r = await api("/api/refit", { style: p.style, upper: p.upper });
+  if (!r.ok) setMsg(r.error || "Busy", true);
+};
+$("insert").onclick = doInsert;
+$("srt").onclick = () => { location.href = "/api/srt"; };
+
+try { const s = JSON.parse(localStorage.getItem("mixcaps_look") || "null"); if (s && s.look && s.base) { look = s.look; base = s.base; } } catch (e) {}
+toEditor(); loadPresets(); loadFonts();
+
+// remember choices
+const keep = ["lang", "wpc", "snap", "marks", "low", "posY", "posAuto", "remember"];
+try { const s = JSON.parse(localStorage.getItem("mixcaps") || "{}"); keep.forEach(k => { if (k in s) { const el = $(k); if (el.type === "checkbox") el.checked = s[k]; else el.value = s[k]; } }); } catch (e) {}
+keep.forEach(k => $(k).addEventListener("change", () => { try { const o = {}; keep.forEach(x => { const el = $(x); o[x] = el.type === "checkbox" ? el.checked : el.value; }); localStorage.setItem("mixcaps", JSON.stringify(o)); } catch (e) {} }));
+syncChips(); showLook(); render();
+if (location.hash === "#style") document.querySelector('.tab[data-tab="style"]').click();
+
+async function poll() {
+  try {
+    const s = await api("/api/state");
+    $("conn").className = "conn" + (s.bridge ? " on" : "");
+    $("connTxt").textContent = s.bridge ? (s.info && s.info.timeline ? s.info.timeline : "Resolve connected") : "Resolve not connected";
+    $("conn").title = s.bridge ? (s.info ? s.info.project + " › " + s.info.timeline : "") : "In Resolve: Workspace › Scripts › MixCaps";
+    phase = s.phase;
+    const working = ["render", "transcribe", "insert"].includes(phase);
+    $("prog").classList.toggle("on", working);
+    $("bar").style.width = (s.pct || 0) + "%";
+    setMsg(s.error ? s.error : s.msg, !!s.error);
+    $("gen").disabled = $("genFile").disabled = working;
+    $("insert").disabled = working || !s.bridge || !caps.length;
+    $("refit").disabled = $("restyle").disabled = working || !s.bridge;
+    $("srt").disabled = !caps.length;
+    const j = JSON.stringify(s.captions);
+    if (j !== lastJson && (!dirty && document.activeElement.tagName !== "INPUT" || !caps.length)) { lastJson = j; caps = s.captions; render(); }
+  } catch (e) {
+    $("conn").className = "conn"; $("connTxt").textContent = "MixCaps app closed";
+  }
+  setTimeout(poll, 700);
+}
+api("/api/info", {}).catch(() => {});
+poll();
+</script>
+</body>
+</html>

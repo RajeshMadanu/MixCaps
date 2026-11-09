@@ -1,0 +1,4 @@
+# Words MixCaps should know: game names, your channel, friends, slang. One per line.
+# Write them the way they should appear in captions.
+# GameGlitch
+# Valorant

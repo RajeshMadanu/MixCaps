@@ -1,0 +1,7 @@
+# Common Hindi words (romanized) that must never be "corrected" into English
+hai hain tha thi the ho hoga hogi hun hoon main mai mera meri mere tera teri tere apna apni uska uski
+yeh ye woh wo kya kyu kyun kaise kab kahan kidhar idhar udhar yahan wahan aur ya par lekin magar
+nahi na mat bhi to toh hi se ko ka ki ke mein me pe tak liye wala wali wale
+kar karo karna kiya kiye raha rahi rahe gaya gayi gaye aaya aayi aa ja jao chal chalo dekh dekho
+bhai bhaiya yaar dost abe arey arre accha acha theek thik bas sab kuch kitna bahut bohot zyada kam
+ab abhi phir fir kal aaj pehle baad jaldi dheere

@@ -1,0 +1,3 @@
+# Automatic fixes, applied to every new caption job:   wrong => right
+# The "Replace all" box in MixCaps adds lines here when "remember" is ticked.
+# nijanga => nijamga
